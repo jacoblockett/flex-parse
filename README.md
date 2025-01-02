@@ -7,7 +7,7 @@ Flex-parse is a document parser that tries to abide by the following rules:
 1. Regardless of syntactic rules, if it can be understood, it will be parsed
 2. Preserve everything unless otherwise noted by the user through options
 
-It returns a document structure utilizing [virty](https://github.com/jacoblocket/virty), allowing you to query and manipulate the results.
+It returns a document structure utilizing [virty](https://github.com/jacoblockett/virty), allowing you to query and manipulate the results.
 
 ### A Note on Performance
 
