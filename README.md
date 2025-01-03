@@ -103,7 +103,7 @@ Using this basic example, you'll receive a structure that, when unmasked, looks 
 }
 ```
 
-> ❔ Flex-parse will always wrap the provided data in a `"ROOT"` element.
+> 💡 Flex-parse will always wrap the provided data in a `"ROOT"` element.
 
 Now, this result to some will understandbly be confusing or overwhelming. After all, why are there so many text nodes all over the place when the data only has two visible text nodes, `"Hello, world!"` and `"Sub-header"`? The answer is that a text node is not simply any visible text that's understood by a human as _text_. It is instead any portion of the data that is not an element node and not a comment node. **This will include any whitespace used for formatting.** As mentioned in the rules of this library, the parser will be as greedy as possible. It doesn't want to make any assumptions about your data.
 
