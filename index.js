@@ -5,28 +5,8 @@ import truncateWhitespace from "./utils/truncateWhitespace.js"
 
 // TODO: Don't forget to handle CDATA, whatever the fuck that is...
 // NOTE: Pi tags are the tags that start and end with <? --- ?>
-
-/**
- * Options to implement:
- * events:
- * onTagOpened
- * onTagClosed
- * onComment
- * customization:
- * ignorePI (true/false)
- * truncateAttribute
- * truncateText
- * trimAttribute
- * trimText
- * mode (html/xml = default)
- */
-
-// NOTE: If the root level has multiple tags (PI, declarations, etc.), make sure to wrap them in a root Tag
-// TODO: Probably a good idea to think of how to automatically detect the type of data, i.e. XML vs HTML
-// NOTE: The parser should make absolutely no assumptions about the provided data and should parse it according to
-//       xml spec. Options should be provided to extensively customize how the parser works. A premade "HTML"
-//       exported options object would be ideal, I'm sure, too.
-// TODO: Need to profile, specifically one thing to check is if my whitespace trim/trunc method is speedier than a whitespace replace regex
+// TODO: Need to profile, specifically one thing to check is if my whitespace trim/trunc method is speedier than a whitespace replace regex.
+//       Not that this necessarily matters - I feel I have more control the way I'm doing it.
 // TODO: If speed is wanted, I'll likely want to make the algo smarter so that trim/truncate processes aren't done post, but rather in place
 //       as each character is parsed
 
@@ -41,11 +21,12 @@ function parseAttributeValue(value) {
  *
  * @param {string|Buffer} data The HTML/XML data to parse
  * @param {object} [options]
- * @param {boolean} [options.ignoreEmptyTextNode] Removes any empty (whitespace only) text nodes from the results
+ * @param {boolean} [options.ignoreEmptyText] Removes any empty (whitespace only) text nodes from the results
+ * @param {(data: string) => string} [options.onText] An event fired when a text node is about to be pushed to the results whose return string will replace the original text node's value
  * @param {boolean} [options.trimAttribute] Trims whitespace on either side of attribute values
- * @param {boolean} [options.trimTextNode] Trims whitespace on either side of text nodes
+ * @param {boolean} [options.trimText] Trims whitespace on either side of text nodes
  * @param {boolean} [options.truncateAttribute] Collapses all multiple-sequenced whitespaces into a single whitespace on attribute values
- * @param {boolean} [options.truncateTextNode] Collapses all multiple-sequenced whitespaces into a single whitespace on text nodes
+ * @param {boolean} [options.truncateText] Collapses all multiple-sequenced whitespaces into a single whitespace on text nodes
  *
  * @returns {Node}
  */
@@ -56,9 +37,12 @@ function parse(data, options = {}) {
 
 	// Set default options
 	if (Object.prototype.toString.call(options) !== "[object Object]") options = {}
-	if (typeof options.ignoreEmptyTextNode !== "boolean") options.ignoreEmptyTextNode = false // i.e. <div> <img /></div> would normally give a text node between the opening div tag and the img tag. If this option is true, that text node would be ignored and not pushed to the final results.
-	if (typeof options.trimTextNode !== "boolean") options.trimTextNode = false // i.e. " test " -> "test"
-	if (typeof options.truncateTextNode !== "boolean") options.truncateTextNode = false // i.e. "  a  b  c  " -> " a b c "
+	if (typeof options.ignoreEmptyText !== "boolean") options.ignoreEmptyText = false
+	if (typeof options.onText !== "function") options.onText = undefined
+	if (typeof options.trimAttribute !== "boolean") options.trimAttribute = false
+	if (typeof options.trimText !== "boolean") options.trimText = false
+	if (typeof options.truncateAttribute !== "boolean") options.truncateAttribute = false
+	if (typeof options.truncateText !== "boolean") options.truncateText = false
 
 	// testing only. remove this later
 	function report(char) {
@@ -127,12 +111,17 @@ function parse(data, options = {}) {
 			} else if (ntype === TEXT) {
 				ntype = ELEMENT
 				gate = TAG_NAME
-				if ((options.ignoreEmptyTextNode && cbuf.trim().length) || !options.ignoreEmptyTextNode) {
-					if (options.trimTextNode) cbuf = cbuf.trim()
-					if (options.truncateTextNode) cbuf = truncateWhitespace(cbuf)
 
-					node.appendChild(new Node({ type: TEXT, value: cbuf }))
+				if (options.onText) {
+					cbuf = options.onText(cbuf)
+
+					if (typeof cbuf !== "string") throw new Error("Expected the result of 'onText' to be a string")
 				}
+				if (options.trimText) cbuf = cbuf.trim()
+				if (options.truncateText) cbuf = truncateWhitespace(cbuf)
+				if (options.ignoreEmptyText && !cbuf.length) continue
+
+				node.appendChild(new Node({ type: TEXT, value: cbuf }))
 				cbuf = ""
 				continue
 			}
@@ -143,8 +132,29 @@ function parse(data, options = {}) {
 						nbuf.tagName = cbuf
 					} else if (gate === ATT_NAME) {
 						if (!nbuf.attributes) nbuf.attributes = {}
+						if (options.onAttribute) {
+							const attr = options.onAttribute(cbuf, "", { tagName: nbuf.tagName, attributes: { ...nbuf.attributes } })
 
-						nbuf.attributes[cbuf] = ""
+							if (
+								Array.isArray(attr) &&
+								typeof attr[0] === "string" &&
+								attr[0].length &&
+								(typeof attr[1] === "string" || typeof attr[1] === "number" || typeof attr[1] === "boolean")
+							) {
+								if (typeof attr[1] === "string") {
+									if (options.trimAttribute) attr[1] = attr[1].trim()
+									if (options.truncateAttribute) attr[1] = truncateWhitespace(attr[1])
+								}
+
+								nbuf.attributes[attr[0]] = attr[1]
+								// TO FUTURE JACOB: Trying desperately to figure out the best way to implement the event functions.
+								// Seems like providing contextual information would be the best way to go, but to what end? Should
+								// I provide the working nodes, buffer node, and all buffers? How do I present that, or whatever I
+								// end up providing? That kind of thing.
+							}
+						} else {
+							nbuf.attributes[cbuf] = ""
+						}
 					} else if (gate === NQ_A_VAL) {
 						if (!nbuf.attributes) nbuf.attributes = {}
 						if (options.trimAttribute) cbuf = cbuf.trim()
@@ -316,12 +326,16 @@ function parse(data, options = {}) {
 
 	if (cbuf) {
 		if (ntype === TEXT) {
-			if ((options.ignoreEmptyTextNode && cbuf.trim().length) || !options.ignoreEmptyTextNode) {
-				if (options.trimTextNode) cbuf = cbuf.trim()
-				if (options.truncateTextNode) cbuf = truncateWhitespace(cbuf)
+			if (options.onText) {
+				cbuf = options.onText(cbuf)
 
-				node.appendChild(new Node({ type: TEXT, value: cbuf }))
+				if (typeof cbuf !== "string") throw new Error("Expected the result of 'onText' to be a string")
 			}
+			if (options.trimText) cbuf = cbuf.trim()
+			if (options.truncateText) cbuf = truncateWhitespace(cbuf)
+			if (options.ignoreEmptyText && !cbuf.length) return root
+
+			node.appendChild(new Node({ type: TEXT, value: cbuf }))
 		} else {
 			throw new Error("Unexpected end of input")
 		}
