@@ -1,0 +1,34 @@
+{
+	"name": "flex-parse",
+	"version": "0.1.0",
+	"description": "A flexible document/ml parser, allowing non-standard practices and preferring a greedy 'preserve all' approach",
+	"main": "index.js",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/jacoblockett/flex-parse"
+	},
+	"scripts": {
+		"dev": "clear && node dev/sandbox.js",
+		"test": "clear && node --test test.js"
+	},
+	"keywords": [
+		"html",
+		"xml",
+		"parse",
+		"parser",
+		"flexible",
+		"greedy",
+		"preserve",
+		"dom",
+		"vdom"
+	],
+	"author": "Jacob Lockett",
+	"license": "MIT",
+	"devDependencies": {
+		"zod": "^3.24.1"
+	},
+	"dependencies": {
+		"virty": "github:jacoblockett/virty"
+	}
+}
