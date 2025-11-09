@@ -182,6 +182,41 @@ const tests = [
 				})
 			])
 		})
+	},
+	// Complex multi-line element test
+	{
+		data: `<body>
+	<div id="main">Never</div>
+</body>`,
+		schema: ROOT_SCHEMA.extend({
+			children: z.tuple([
+				z.object({
+					children: z.tuple([
+						z.object({
+							type: z.literal(TEXT),
+							value: z.literal("\n\t")
+						}),
+						z.object({
+							attributes: z.object({ id: z.literal("main") }),
+							children: z.tuple([
+								z.object({
+									type: z.literal(TEXT),
+									value: z.literal("Never")
+								})
+							]),
+							tagName: z.literal("div"),
+							type: z.literal(ELEMENT)
+						}),
+						z.object({
+							type: z.literal(TEXT),
+							value: z.literal("\n")
+						})
+					]),
+					tagName: z.literal("body"),
+					type: z.literal(ELEMENT)
+				})
+			])
+		})
 	}
 ]
 

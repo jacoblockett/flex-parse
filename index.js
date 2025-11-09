@@ -44,16 +44,19 @@ function parse(data, options = {}) {
 	if (typeof options.truncateAttribute !== "boolean") options.truncateAttribute = false
 	if (typeof options.truncateText !== "boolean") options.truncateText = false
 
-	// testing only. remove this later
+	// These two functions exist solely as a breadcrumb audit for testing.
+	function convertWSToText(str) {
+		return str.replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t")
+	}
 	function report(char) {
 		console.log(
-			`cnod: ${`"${node.tagName}"`.padEnd(8)} |`,
-			`char: "${char}" |`,
-			`abuf: ${`"${abuf}"`.padEnd(5, " ")} |`,
-			`cbuf: ${`"${cbuf}"`.padEnd(30, " ")} |`,
-			`gate: ${(gate ? `"${gate}"` : "?").padEnd(35, " ")} |`,
-			`ntype: ${(ntype ? `"${ntype}"` : "?").padEnd(10, " ")} |`,
-			`ttype: ${(ttype ? `"${ttype}"` : "?").padEnd(18, " ")} |`,
+			`cnod: ${convertWSToText(`"${node.tagName}"`).padEnd(9)} |`,
+			`char: ${`"${convertWSToText(char)}"`.padEnd(4, " ")} |`,
+			`abuf: ${`"${convertWSToText(abuf)}"`.padEnd(5, " ")} |`,
+			`cbuf: ${`"${convertWSToText(cbuf)}"`.padEnd(10, " ")} |`,
+			`gate: ${(gate ? `"${convertWSToText(gate)}"` : "?").padEnd(30, " ")} |`,
+			`ntype: ${(ntype ? `"${convertWSToText(ntype)}"` : "?").padEnd(9, " ")} |`,
+			`ttype: ${(ttype ? `"${convertWSToText(ttype)}"` : "?").padEnd(18, " ")} |`,
 			"nbuf:",
 			nbuf
 		)
@@ -119,7 +122,10 @@ function parse(data, options = {}) {
 				}
 				if (options.trimText) cbuf = cbuf.trim()
 				if (options.truncateText) cbuf = truncateWhitespace(cbuf)
-				if (options.ignoreEmptyText && !cbuf.length) continue
+				if (options.ignoreEmptyText && !cbuf.trim().length) {
+					cbuf = ""
+					continue
+				}
 
 				node.appendChild(new Node({ type: TEXT, value: cbuf }))
 				cbuf = ""
