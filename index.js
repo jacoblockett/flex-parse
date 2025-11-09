@@ -35,6 +35,8 @@ function parse(data, options = {}) {
 		throw new TypeError("Expected 'data' to be a string or Buffer")
 	if (Buffer.isBuffer(data)) data = data.toString()
 
+	data = data.trim()
+
 	// Set default options
 	if (Object.prototype.toString.call(options) !== "[object Object]") options = {}
 	if (typeof options.ignoreEmptyText !== "boolean") options.ignoreEmptyText = false
