@@ -1,4 +1,4 @@
-import parse from "./index.js"
+import parse from "../src/index.js"
 import { z } from "zod"
 import { describe, it } from "node:test"
 import assert from "node:assert"

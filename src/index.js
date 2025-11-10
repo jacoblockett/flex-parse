@@ -184,7 +184,12 @@ function parse(data, options = {}) {
 
 						node = node.parent
 					} else {
-						const nnode = new Node({ type: ELEMENT, tagName: nbuf.tagName, attributes: nbuf.attributes })
+						const nnode = new Node({
+							type: ELEMENT,
+							tagName: nbuf.tagName,
+							attributes: nbuf.attributes,
+							isSelfClosing: ttype === SC_TAG
+						})
 
 						node.appendChild(nnode)
 

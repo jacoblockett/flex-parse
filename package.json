@@ -1,8 +1,13 @@
 {
 	"name": "flex-parse",
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"description": "A flexible document/ml parser, allowing non-standard practices and preferring a greedy 'preserve all' approach",
-	"main": "index.js",
+	"main": "dist/index.js",
+	"module": "src/index.js",
+	"exports": {
+		"require": "./dist/index.cjs",
+		"import": "./src/index.js"
+	},
 	"type": "module",
 	"repository": {
 		"type": "git",
@@ -10,7 +15,8 @@
 	},
 	"scripts": {
 		"dev": "clear && node dev/sandbox.js",
-		"test": "clear && node --test test.js"
+		"test": "node --test tests/test.js",
+		"build": "rollup -c"
 	},
 	"keywords": [
 		"html",
@@ -26,6 +32,9 @@
 	"author": "Jacob Lockett",
 	"license": "MIT",
 	"devDependencies": {
+		"@rollup/plugin-commonjs": "^29.0.0",
+		"@rollup/plugin-node-resolve": "^16.0.3",
+		"rollup": "^4.53.2",
 		"zod": "^3.24.1"
 	},
 	"dependencies": {
