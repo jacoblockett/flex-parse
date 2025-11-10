@@ -57,9 +57,9 @@ const data = `<body>
     </div>
 </body>`
 
-const results = fp(data)
+const parsed = fp(data)
 
-console.log(results)
+console.log(parsed)
 ```
 
 Using this basic example, you'll receive a structure that, when unmasked, looks something like this:
@@ -105,340 +105,237 @@ Using this basic example, you'll receive a structure that, when unmasked, looks 
 
 > 💡 Flex-parse will always wrap the provided data in a `"ROOT"` element.
 
-Now, this result to some will understandbly be confusing or overwhelming. After all, why are there so many text nodes all over the place when the data only has two visible text nodes, `"Hello, world!"` and `"Sub-header"`? The answer is that a text node is not simply any visible text that's understood by a human as _text_. It is instead any portion of the data that is not an element node and not a comment node. **This will include any whitespace used for formatting.** As mentioned in the rules of this library, the parser will be as greedy as possible. It doesn't want to make any assumptions about your data.
-
-So, your next big question is probably, "_How do I get rid of those text nodes used for formatting?_" Luckily, this is a super simple thing to do with the `ignoreEmptyTextNode` option. In the basic example above, replace the current parse command with:
-
-```js
-const results = fp(data, { ignoreEmptyTextNode: true })
-```
-
-With that one simple change, you've simplified your results into:
-
-```json
-{
-	"type": "element",
-	"tagName": "ROOT",
-	"children": [
-		{
-			"type": "element",
-			"tagName": "body",
-			"children": [
-				{
-					"type": "element",
-					"tagName": "h1",
-					"children": [{ "type": "text", "value": "Hello, world!" }]
-				},
-				{
-					"type": "element",
-					"tagName": "h2",
-					"children": [{ "type": "text", "value": "Sub-header" }]
-				},
-				{
-					"type": "element",
-					"tagName": "div",
-					"attributes": { "id": "some-id", "bool-attr": "" },
-					"children": [{ "type": "comment", "value": "<!-- todo -->" }]
-				}
-			]
-		}
-	]
-}
-```
-
-And that's all there is to it! To learn more about what each option for the parser does, keep reading. And if you'd like to learn more about and how to use the structure that's returned, you can visit my [virty](https://github.com/jacoblockett/virty) library for details.
+ To learn more about what each option for the parser does, keep reading. And if you'd like to learn more about and how to use the structure that's returned, you can visit my [virty](https://github.com/jacoblockett/virty) library for details.
 
 ## Options
 
-All options are defaulted to `false`, meaning that if you don't explicitly ask for it, it won't be used by the parser.
+All options default in such a way to preserve as much about the original data as possible. You must be explicit if you want QOL results, such as ignoring empty/structural text nodes, etc.
 
-### Currently Implemented
+```ts
+const options = {
+	ignoreEmptyText: boolean,         // false
+	onText: (text: string) => string, // undefined
+	trimAttributes: boolean,          // false
+	trimText: boolean,                // false
+	truncateAttributes: boolean,      // false
+	truncateText: boolean             // false
+}
+```
 
-- [ignoreEmptyTextNode](#ignoreemptytextnode)
-- [trimAttributeValue](#trimattributevalue)
-- [trimTextNode](#trimtextnode)
-- [truncateAttributeValue](#truncateattributevalue)
-- [truncateTextNode](#truncatetextnode)
+### Table of Contents
 
-### Planned
+- [ignoreEmptyText](#ignoreemptytext)
+- [onText](#ontext)
+- [trimAttributes](#trimattributes)
+- [trimText](#trimtext)
+- [truncateAttributes](#truncateattributes)
+- [truncateText](#truncatetext)
 
-_Note_: Plans change. Not all of the options listed here will be sure to exist. Their current implementation notes might differ from their eventual implementation. Their name might change. Etc.
+### Future Plans
 
-- ignoreAttributes (ignores all attributes, removing them from the results)
-- ignoreCommentNodes (ignores all comment nodes, removing them from the results)
-- ignoreElementNodes (ignores all element nodes, removing them from the results)
-- ignoreTextNodes (ignores all text nodes, removing them from the results)
-- mustNotContainElementNodes (a list of case-sensitive element tag names that will throw an error if they contain any element nodes as a direct descendent)
-- mustNotContainTextNodes (a list of case-sensitive element tag names that will throw an error if they contain any text nodes as a direct descendent)
-- mustNotContainTextNodesStrict (a list of case-sensitive element tag names that will throw an error if they contain any text nodes as a direct or nested descendent)
-- mustNotSelfClose (a list of case-sensitive element tag names that will throw an error if they self-close)
-- mustPreserveWhitespace (a list of case-sensitive element tag names that, regardless of other options, will preserve their whitespace)
-- mustSelfClose (a list of case-sensitive element tag names that will throw an error if they don't self-close)
-- onAttribute (event fired when an attribute value is about to be pushed)
-- onComment (event fired when a comment node is about to be pushed)
-- onElement (event fired when an element node is about to be pushed)
-- onText (event fired when a text node is about to be pushed)
-- parseChildrenAsText (a list of case-sensitive element tag names that will not have its children parsed as anything more than text. useful for script tags in html, etc.)
-- parseAttributes (parses attributes into normalized js values, such as boolean attributes, numbers, dates, etc.)
+> 🥸 Plans change. Not all of the options listed here will be sure to exist. Their current implementation notes might differ from their eventual implementation, their name might change, etc.
+
+- [ ] ignoreAttributes (ignores all attributes, removing them from the results)
+- [ ] ignoreCommentNodes (ignores all comment nodes, removing them from the results)
+- [ ] ignoreElementNodes (ignores all element nodes, removing them from the results)
+- [ ] ignoreTextNodes (ignores all text nodes, removing them from the results)
+- [ ] mustNotContainElementNodes (a list of case-sensitive element tag names that will throw an error if they contain any element nodes as a direct descendent)
+- [ ] mustNotContainTextNodes (a list of case-sensitive element tag names that will throw an error if they contain any text nodes as a direct descendent)
+- [ ] mustNotContainTextNodesStrict (a list of case-sensitive element tag names that will throw an error if they contain any text nodes as a direct or nested descendent)
+- [ ] mustNotSelfClose (a list of case-sensitive element tag names that will throw an error if they self-close)
+- [ ] mustPreserveWhitespace (a list of case-sensitive element tag names that, regardless of other options, will preserve their whitespace)
+- [ ] mustSelfClose (a list of case-sensitive element tag names that will throw an error if they don't self-close)
+- [ ] onAttribute (event fired when an attribute value is about to be pushed)
+- [ ] onComment (event fired when a comment node is about to be pushed)
+- [ ] onElement (event fired when an element node is about to be pushed)
+- [x] <span style="text-decoration:line-through;">onText (event fired when a text node is about to be pushed)</span>
+- [ ] parseChildrenAsText (a list of case-sensitive element tag names that will not have its children parsed as anything more than text. useful for script tags in html, etc.)
+- [ ] parseAttributes (parses attributes into normalized js values, such as boolean attributes, numbers, dates, etc.)
 
 ---
 
-### `ignoreEmptyTextNode`
+### `ignoreEmptyText`
 
-Ignores any empty or whitespace-only text nodes, removing them from the resulting structure.
+| Type | Default Value | Description |
+| - | - | - |
+| `boolean` | `false` | Ignores any empty or whitespace-only text nodes, removing them from the resulting structure. |
 
-Example data:
+Example:
 
-```html
-<body>
+```js
+const html = `<body>
 	<div id="main"></div>
-</body>
+</body>`
+const parsedWithEmptyText = fp(html)
+const parsedWithoutEmptyText = fp(html, { ignoreEmptyText: true })
+
+// toObject is a wrapper function that creates an object from a virty node
+console.dir(toObject(parsedWithEmptyText.firstChild), { depth: null })
+console.dir(toObject(parsedWithoutEmptyText.firstChild), { depth: null })
 ```
 
-Default:
+Output:
 
-```json
+```sh
+$ node example.js
 {
-	"type": "element",
-	"tagName": "ROOT",
-	"children": [
-		{
-			"type": "element",
-			"tagName": "body",
-			"children": [
-				// Notice the additional text nodes representing structural formatting
-				{ "type": "text", "value": "\r\n\t" },
-				{ "type": "element", "tagName": "div", "attributes": { "id": "main" } },
-				{ "type": "text", "value": "\r\n" }
-			]
-		}
-	]
+  type: 'element',
+  tagName: 'body',
+  children: [
+    { type: 'text', value: '\n\t' },
+    { type: 'element', tagName: 'div', attributes: { id: 'main' } },
+    { type: 'text', value: '\n' }
+  ]
 }
-```
-
-With the option set to `true`:
-
-```json
 {
-	"type": "element",
-	"tagName": "ROOT",
-	"children": [
-		{
-			"type": "element",
-			"tagName": "body",
-			// The structural formatting text nodes have been removed
-			"children": [{ "type": "element", "tagName": "div", "attributes": { "id": "main" } }]
-		}
-	]
+  type: 'element',
+  tagName: 'body',
+  children: [ { type: 'element', tagName: 'div', attributes: { id: 'main' } } ]
 }
 ```
 
 ---
 
-### `trimAttributeValue`
+### `onText`
 
-Trims leading and trailing whitespace surrounding each attribute value.
+| Type | Default Value | Description |
+| - | - | - |
+| `function` | `undefined` | A function that fires every time a new text node has been parsed and written to the structure. Its return value will replace whatever the original text was. |
 
-Example data:
+Signature:
 
-```html
-<p class=" lorem ">Lorem ipsum dolor sit amet...</p>
+```ts
+function onText(text: string): string
 ```
 
-Default:
+Example:
 
-```json
-{
-	"type": "element",
-	"tagName": "ROOT",
-	"children": [
-		{
-			"type": "element",
-			"tagName": "p",
-			// Notice the surrounding whitespace was retained on the class attribute
-			"attributes": { "class": " lorem " },
-			"children": [{ "type": "text", "value": "Lorem ipsum dolor sit amet..." }]
-		}
-	]
-}
+```js
+const html = "<div><span>First</span> <span>Second</span></div>"
+const parsed = fp(html, {
+	onText: text => {
+		if (text === "Second") return "Last"
+
+		return text
+	}
+})
+
+console.log(parsed.firstChild.lastChild.text)
 ```
 
-With the option set to `true`:
+Output:
 
-```json
-{
-	"type": "element",
-	"tagName": "ROOT",
-	"children": [
-		{
-			"type": "element",
-			"tagName": "p",
-			//The surrounding whitespace is now removed
-			"attributes": { "class": "lorem" },
-			"children": [{ "type": "text", "value": "Lorem ipsum dolor sit amet..." }]
-		}
-	]
-}
+```sh
+$ node example.js
+Last
 ```
 
 ---
 
-### `trimTextNode`
+### `trimAttributes`
 
-Trims leading and trailing whitespace surrounding each text node.
+| Type | Default Value | Description |
+| - | - | - |
+| `boolean` | `false` | Trims leading and trailing whitespace surrounding each attribute value. |
 
-Example data:
+Example:
 
-```html
-<p>Lorem ipsum dolor sit amet...</p>
+```js
+const html = `<p class=" lorem ">Lorem ipsum dolor sit amet...</p>`
+const parsedWithoutTrimmedAttributes = fp(html)
+const parsedWithTrimmedAttributes = fp(html, { trimAttributes: true })
+
+console.log(`"${parsedWithoutTrimmedAttributes.firstChild.attributes.class}"`)
+console.log(`"${parsedWithTrimmedAttributes.firstChild.attributes.class}"`)
 ```
 
-Default:
+Output:
 
-```json
-{
-	"type": "element",
-	"tagName": "ROOT",
-	"children": [
-		{
-			"type": "element",
-			"tagName": "p",
-			"children": [
-				{
-					"type": "text",
-					// Notice the surrounding whitespace was retained around the text value
-					"value": "  Lorem ipsum dolor sit amet...  "
-				}
-			]
-		}
-	]
-}
-```
-
-With the option set to `true`:
-
-```json
-{
-	"type": "element",
-	"tagName": "ROOT",
-	"children": [
-		{
-			"type": "element",
-			"tagName": "p",
-			"children": [
-				{
-					"type": "text",
-					// The surrounding whitespace has been removed
-					"value": "Lorem ipsum dolor sit amet..."
-				}
-			]
-		}
-	]
-}
-```
-
-> ❗ A common point of confusion is that `trimTextNode` will trim leading and trailing whitespace around elements. This is not correct. Trim will simply trim the text node's string value. If the resulting text node is an empty string, it **will not remove the text node**. To remove empty text nodes in this manner, use the [`ignoreEmptyTextNode`](#ignoreemptytextnode) option instead. Additionally, you _do not_ need to use `trimTextNode` in conjunction with `ignoreEmptyTextNode` if your desire is to remove any text nodes with whitespace only. The parser will handle that logic for you.
-
----
-
-### `truncateAttributeValue`
-
-Truncates all whitespace within the attribute value into a single `U+0020` space value.
-
-Example data:
-
-```html
-<p class="a  b    c">Lorem ipsum dolor sit amet...</p>
-```
-
-Default:
-
-```json
-{
-	"type": "element",
-	"tagName": "ROOT",
-	"children": [
-		{
-			"type": "element",
-			"tagName": "p",
-			// Notice the class attribute retains the spacing between a, b, and c
-			"attributes": { "class": "a  b    c" },
-			"children": [{ "type": "text", "value": "Lorem ipsum dolor sit amet..." }]
-		}
-	]
-}
-```
-
-With the option set to `true`:
-
-```json
-{
-	"type": "element",
-	"tagName": "ROOT",
-	"children": [
-		{
-			"type": "element",
-			"tagName": "p",
-			// The spacing between a, b, and c has been normalized
-			"attributes": { "class": "a b c" },
-			"children": [{ "type": "text", "value": "Lorem ipsum dolor sit amet..." }]
-		}
-	]
-}
+```sh
+$ node example.js
+" lorem "
+"lorem"
 ```
 
 ---
 
-### `truncateTextNode`
+### `trimText`
 
-Truncates all whitespace within each text node into a single `U+0020` space value.
+| Type | Default Value | Description |
+| - | - | - |
+| `boolean` | `false` | Trims leading and trailing whitespace surrounding each text node. |
 
-Example data:
+Example:
 
-```html
-<p>Lorem ipsum dolor sit amet...</p>
+```js
+const html = `<p>  Lorem ipsum dolor sit amet...  </p>`
+const parsedWithoutTrimmedText = fp(html)
+const parsedWithTrimmedText = fp(html, { trimText: true })
+
+console.log(`"${parsedWithoutTrimmedText.firstChild.text}"`)
+console.log(`"${parsedWithTrimmedText.firstChild.text}"`)
 ```
 
-Default:
+Output:
 
-```json
-{
-	"type": "element",
-	"tagName": "ROOT",
-	"children": [
-		{
-			"type": "element",
-			"tagName": "p",
-			"children": [
-				{
-					"type": "text",
-					// Notice the text node value retains the original spacing
-					"value": "Lorem   ipsum     dolor sit amet...  "
-				}
-			]
-		}
-	]
-}
+```sh
+$ node example.js
+"  Lorem ipsum dolor sit amet...  "
+"Lorem ipsum dolor sit amet..."
 ```
 
-With the option set to `true`:
+> 💡 `trimText` **does not** remove text nodes whose value become `""` after trimming. If you need to remove empty or whitespace-only text nodes, use [`ignoreEmptyText`](#ignoreemptytext) instead.
 
-```json
-{
-	"type": "element",
-	"tagName": "ROOT",
-	"children": [
-		{
-			"type": "element",
-			"tagName": "p",
-			"children": [
-				{
-					"type": "text",
-					// The spacing between the words has been normalized
-					"value": "Lorem ipsum dolor sit amet... "
-				}
-			]
-		}
-	]
-}
+---
+
+### `truncateAttribute`
+
+| Type | Default Value | Description |
+| - | - | - |
+| `boolean` | `false` | Truncates all whitespace within each attribute value into a single `U+0020` space value. |
+
+Example:
+
+```js
+const html = `<p class="a  b    c">Lorem ipsum dolor sit amet...</p>`
+const parsedWithoutTruncatedAttributes = fp(html)
+const parsedWithTruncatedAttributes = fp(html, { truncateAttributes: true })
+
+console.log(`"${parsedWithoutTruncatedAttributes.firstChild.attributes.class}"`)
+console.log(`"${parsedWithTruncatedAttributes.firstChild.attributes.class}"`)
+```
+
+Output:
+
+```sh
+$ node example.js
+"a  b    c"
+"a b c"
+```
+
+---
+
+### `truncateText`
+
+| Type | Default Value | Description |
+| - | - | - |
+| `boolean` | `false` | Truncates all whitespace within each text node into a single `U+0020` space value. |
+
+Example:
+
+```js
+const html = `<p>Lorem   ipsum     dolor sit amet...  </p>`
+const parsedWithoutTruncatedText = fp(html)
+const parsedWithTruncatedText = fp(html, { truncateText: true })
+
+console.log(`"${parsedWithoutTruncatedText.firstChild.text}"`)
+console.log(`"${parsedWithTruncatedText.firstChild.text}"`)
+```
+
+Output:
+
+```sh
+$ node example.js
+"Lorem   ipsum     dolor sit amet...  "
+"Lorem ipsum dolor sit amet... "
 ```
