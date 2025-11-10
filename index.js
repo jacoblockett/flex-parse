@@ -23,9 +23,9 @@ function parseAttributeValue(value) {
  * @param {object} [options]
  * @param {boolean} [options.ignoreEmptyText] Removes any empty (whitespace only) text nodes from the results
  * @param {(data: string) => string} [options.onText] An event fired when a text node is about to be pushed to the results whose return string will replace the original text node's value
- * @param {boolean} [options.trimAttribute] Trims whitespace on either side of attribute values
+ * @param {boolean} [options.trimAttributes] Trims whitespace on either side of attribute values
  * @param {boolean} [options.trimText] Trims whitespace on either side of text nodes
- * @param {boolean} [options.truncateAttribute] Collapses all multiple-sequenced whitespaces into a single whitespace on attribute values
+ * @param {boolean} [options.truncateAttributes] Collapses all multiple-sequenced whitespaces into a single whitespace on attribute values
  * @param {boolean} [options.truncateText] Collapses all multiple-sequenced whitespaces into a single whitespace on text nodes
  *
  * @returns {Node}
@@ -41,9 +41,9 @@ function parse(data, options = {}) {
 	if (Object.prototype.toString.call(options) !== "[object Object]") options = {}
 	if (typeof options.ignoreEmptyText !== "boolean") options.ignoreEmptyText = false
 	if (typeof options.onText !== "function") options.onText = undefined
-	if (typeof options.trimAttribute !== "boolean") options.trimAttribute = false
+	if (typeof options.trimAttributes !== "boolean") options.trimAttributes = false
 	if (typeof options.trimText !== "boolean") options.trimText = false
-	if (typeof options.truncateAttribute !== "boolean") options.truncateAttribute = false
+	if (typeof options.truncateAttributes !== "boolean") options.truncateAttributes = false
 	if (typeof options.truncateText !== "boolean") options.truncateText = false
 
 	// These two functions exist solely as a breadcrumb audit for testing.
@@ -150,8 +150,8 @@ function parse(data, options = {}) {
 								(typeof attr[1] === "string" || typeof attr[1] === "number" || typeof attr[1] === "boolean")
 							) {
 								if (typeof attr[1] === "string") {
-									if (options.trimAttribute) attr[1] = attr[1].trim()
-									if (options.truncateAttribute) attr[1] = truncateWhitespace(attr[1])
+									if (options.trimAttributes) attr[1] = attr[1].trim()
+									if (options.truncateAttributes) attr[1] = truncateWhitespace(attr[1])
 								}
 
 								nbuf.attributes[attr[0]] = attr[1]
@@ -165,8 +165,8 @@ function parse(data, options = {}) {
 						}
 					} else if (gate === NQ_A_VAL) {
 						if (!nbuf.attributes) nbuf.attributes = {}
-						if (options.trimAttribute) cbuf = cbuf.trim()
-						if (options.truncateAttribute) cbuf = truncateWhitespace(cbuf)
+						if (options.trimAttributes) cbuf = cbuf.trim()
+						if (options.truncateAttributes) cbuf = truncateWhitespace(cbuf)
 
 						nbuf.attributes[abuf] = cbuf
 						abuf = ""
@@ -225,8 +225,8 @@ function parse(data, options = {}) {
 							continue
 						} else if (gate === NQ_A_VAL) {
 							if (!nbuf.attributes) nbuf.attributes = {}
-							if (options.trimAttribute) cbuf = cbuf.trim()
-							if (options.truncateAttribute) cbuf = truncateWhitespace(cbuf)
+							if (options.trimAttributes) cbuf = cbuf.trim()
+							if (options.truncateAttributes) cbuf = truncateWhitespace(cbuf)
 
 							nbuf.attributes[abuf] = cbuf
 							abuf = ""
@@ -258,8 +258,8 @@ function parse(data, options = {}) {
 					ttype = SC_TAG
 
 					if (!nbuf.attributes) nbuf.attributes = {}
-					if (options.trimAttribute) cbuf = cbuf.trim()
-					if (options.truncateAttribute) cbuf = truncateWhitespace(cbuf)
+					if (options.trimAttributes) cbuf = cbuf.trim()
+					if (options.truncateAttributes) cbuf = truncateWhitespace(cbuf)
 
 					nbuf.attributes[abuf] = cbuf
 					abuf = ""
@@ -280,8 +280,8 @@ function parse(data, options = {}) {
 			}
 		} else if ((char === S_QUOTE && gate === SQ_A_VAL) || (char === D_QUOTE && gate === DQ_A_VAL)) {
 			if (!nbuf.attributes) nbuf.attributes = {}
-			if (options.trimAttribute) cbuf = cbuf.trim()
-			if (options.truncateAttribute) cbuf = truncateWhitespace(cbuf)
+			if (options.trimAttributes) cbuf = cbuf.trim()
+			if (options.truncateAttributes) cbuf = truncateWhitespace(cbuf)
 
 			nbuf.attributes[abuf] = cbuf
 			abuf = ""
