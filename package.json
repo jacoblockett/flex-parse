@@ -1,6 +1,6 @@
 {
 	"name": "flex-parse",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "A flexible document/ml parser, allowing non-standard practices and preferring a greedy 'preserve all' approach",
 	"main": "index.js",
 	"type": "module",
