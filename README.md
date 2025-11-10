@@ -35,11 +35,12 @@ pnpm i flex-parse
 function parse(
 	data: string | Buffer,
 	options?: {
-		ignoreEmptyTextNode?: boolean
-		trimTextNode?: boolean
-		truncateTextNode?: boolean
-		trimAttribute?: boolean
-		truncateAttribute?: boolean
+		ignoreEmptyText?: boolean
+		onText?: (text: string) => string
+		trimAttributes?: boolean
+		trimText?: boolean
+		truncateAttributes?: boolean
+		truncateText?: boolean
 	}
 ): Node
 ```
