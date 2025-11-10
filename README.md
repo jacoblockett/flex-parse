@@ -148,7 +148,7 @@ const options = {
 - [ ] onAttribute (event fired when an attribute value is about to be pushed)
 - [ ] onComment (event fired when a comment node is about to be pushed)
 - [ ] onElement (event fired when an element node is about to be pushed)
-- [x] <span style="text-decoration:line-through;">onText (event fired when a text node is about to be pushed)</span>
+- [x] ~~onText (event fired when a text node is about to be pushed)~~
 - [ ] parseChildrenAsText (a list of case-sensitive element tag names that will not have its children parsed as anything more than text. useful for script tags in html, etc.)
 - [ ] parseAttributes (parses attributes into normalized js values, such as boolean attributes, numbers, dates, etc.)
 
