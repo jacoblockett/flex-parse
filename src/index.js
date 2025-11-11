@@ -4,13 +4,6 @@ import hashArray from "./utils/hashArray.js"
 import isWhitespace from "./utils/isWhitespace.js"
 import truncateWhitespace from "./utils/truncateWhitespace.js"
 
-// TODO: Don't forget to handle CDATA, whatever the fuck that is...
-// NOTE: Pi tags are the tags that start and end with <? --- ?>
-// TODO: Need to profile, specifically one thing to check is if my whitespace trim/trunc method is speedier than a whitespace replace regex.
-//       Not that this necessarily matters - I feel I have more control the way I'm doing it.
-// TODO: If speed is wanted, I'll likely want to make the algo smarter so that trim/truncate processes aren't done post, but rather in place
-//       as each character is parsed
-
 /**
  * Parses the given HTML/XML data.
  *
