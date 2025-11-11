@@ -132,7 +132,7 @@ const options = {
 - [truncateAttributes](#truncateattributes)
 - [truncateText](#truncatetext)
 
-### Future Plans
+### Future Options Plans
 
 > 🥸 Plans change. Not all of the options listed here will be sure to exist. Their current implementation notes might differ from their eventual implementation, their name might change, etc.
 
@@ -152,6 +152,16 @@ const options = {
 - [x] ~~onText (event fired when a text node is about to be pushed)~~
 - [ ] parseChildrenAsText (a list of case-sensitive element tag names that will not have its children parsed as anything more than text. useful for script tags in html, etc.)
 - [ ] parseAttributes (parses attributes into normalized js values, such as boolean attributes, numbers, dates, etc.)
+
+### 🛣️ Roadmap to v1
+
+This list isn't exhaustive and will likely be added to. These are some of the things required in order to satisfy a version 1 release that I haven't yet had the chance to implement parsing logic for yet:
+
+- [ ] CDATA
+- [ ] HTML tags that imply closure without needing an explicit closing tag
+- [ ] HTML foreign context elements
+- [ ] Pi elements
+- [ ] Namespaces
 
 ---
 
