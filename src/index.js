@@ -1,5 +1,6 @@
-import { UnexpectedTokenError } from "./utils/errors.js"
-import Node from "virty"
+import { UnexpectedTokenError, UnmatchedClosingTag } from "./utils/errors.js"
+import { Node } from "virty"
+import hashArray from "./utils/hashArray.js"
 import isWhitespace from "./utils/isWhitespace.js"
 import truncateWhitespace from "./utils/truncateWhitespace.js"
 
@@ -10,23 +11,21 @@ import truncateWhitespace from "./utils/truncateWhitespace.js"
 // TODO: If speed is wanted, I'll likely want to make the algo smarter so that trim/truncate processes aren't done post, but rather in place
 //       as each character is parsed
 
-function parseAttributeValue(value) {
-	// TODO
-
-	return value
-}
-
 /**
  * Parses the given HTML/XML data.
  *
  * @param {string|Buffer} data The HTML/XML data to parse
  * @param {object} [options]
+ * @param {boolean} [options.htmlMode] Treats the document as HTML and will apply specific parsing rules as such
  * @param {boolean} [options.ignoreEmptyText] Removes any empty (whitespace only) text nodes from the results
- * @param {(data: string) => string} [options.onText] An event fired when a text node is about to be pushed to the results whose return string will replace the original text node's value
+ * @param {(snapshot: {currentChar: string, currentNodeName: string, attributesBuffer: string, characterBuffer: string, gate: string, openNodeType: string, openTagType: string, nodeBuffer: Node}) => void} [options.onSnapshot] An event fired for every character iterated, producing a snapshot of the current parse buffer; useful for debugging
+ * @param {(text: string) => string} [options.onText] An event fired when a text node is about to be pushed to the results whose return string will replace the original text node's value
+ * @param {string[]} [options.rawTextElements] Case-sensitive list of element names that should have their content be treated as raw text (overwritten by `options.htmlMode`)
  * @param {boolean} [options.trimAttributes] Trims whitespace on either side of attribute values
  * @param {boolean} [options.trimText] Trims whitespace on either side of text nodes
  * @param {boolean} [options.truncateAttributes] Collapses all multiple-sequenced whitespaces into a single whitespace on attribute values
  * @param {boolean} [options.truncateText] Collapses all multiple-sequenced whitespaces into a single whitespace on text nodes
+ * @param {string[]} [options.voidElements] Case-sensitive list of element names that should be treated as void - i.e. elements that do not accept children (overwritten by `options.htmlMode`)
  *
  * @returns {Node}
  */
@@ -39,37 +38,53 @@ function parse(data, options = {}) {
 
 	// Set default options
 	if (Object.prototype.toString.call(options) !== "[object Object]") options = {}
+	if (typeof options.htmlMode !== "boolean") options.htmlMode = false
 	if (typeof options.ignoreEmptyText !== "boolean") options.ignoreEmptyText = false
+	if (typeof options.onSnapshot !== "function") options.onSnapshot = undefined
 	if (typeof options.onText !== "function") options.onText = undefined
+	if (!Array.isArray(options.rawTextElements)) options.rawTextElements = []
+	options.rawTextElements = hashArray(options.rawTextElements, options.htmlMode)
 	if (typeof options.trimAttributes !== "boolean") options.trimAttributes = false
 	if (typeof options.trimText !== "boolean") options.trimText = false
 	if (typeof options.truncateAttributes !== "boolean") options.truncateAttributes = false
 	if (typeof options.truncateText !== "boolean") options.truncateText = false
-
-	// These two functions exist solely as a breadcrumb audit for testing.
-	function convertWSToText(str) {
-		return str.replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t")
-	}
-	function report(char) {
-		console.log(
-			`cnod: ${convertWSToText(`"${node.tagName}"`).padEnd(9)} |`,
-			`char: ${`"${convertWSToText(char)}"`.padEnd(4, " ")} |`,
-			`abuf: ${`"${convertWSToText(abuf)}"`.padEnd(5, " ")} |`,
-			`cbuf: ${`"${convertWSToText(cbuf)}"`.padEnd(10, " ")} |`,
-			`gate: ${(gate ? `"${convertWSToText(gate)}"` : "?").padEnd(30, " ")} |`,
-			`ntype: ${(ntype ? `"${convertWSToText(ntype)}"` : "?").padEnd(9, " ")} |`,
-			`ttype: ${(ttype ? `"${convertWSToText(ttype)}"` : "?").padEnd(18, " ")} |`,
-			"nbuf:",
-			nbuf
-		)
+	if (!Array.isArray(options.voidElements)) options.voidElements = []
+	options.voidElements = hashArray(options.voidElements, options.htmlMode)
+	if (options.htmlMode) {
+		options.rawTextElements = {
+			...options.rawTextElements,
+			script: true,
+			style: true,
+			title: true,
+			textarea: true
+		}
+		options.voidElements = {
+			...options.voidElements,
+			area: true,
+			base: true,
+			br: true,
+			col: true,
+			command: true,
+			embed: true,
+			hr: true,
+			img: true,
+			input: true,
+			keygen: true,
+			link: true,
+			meta: true,
+			param: true,
+			source: true,
+			track: true,
+			wbr: true
+		}
 	}
 
 	// Character Constants
 	const LT_SIGN = "<"
 	const GT_SIGN = ">"
 	const EQ_SIGN = "="
-	const S_QUOTE = "'"
-	const D_QUOTE = '"'
+	const S_QUOTE = `'`
+	const D_QUOTE = `"`
 	const F_SLASH = "/"
 	const BANG = "!"
 	const DASH = "-"
@@ -92,18 +107,68 @@ function parse(data, options = {}) {
 
 	// Loop Dependents
 	const root = new Node({ type: ELEMENT, tagName: "ROOT" })
-	let node = root
+	let node = root // default root node to get things started
 	let nbuf = {} // node buffer
 	let abuf = "" // attribute name buffer
 	let cbuf = "" // character buffer
 	let gate // filter gates dictating where the cbuf is meant to be flushed
 	let ntype // node type that is currently open
 	let ttype // tag type for the currently open tag declaration
+	let rmode = false // raw text mode
+	let rmbuf = "" // raw text mode sequence end buffer
 
 	for (let i = 0; i < data.length; i++) {
 		const char = data[i]
 
-		// report(char)
+		if (options.onSnapshot)
+			options.onSnapshot({
+				currentChar: char,
+				attributesBuffer: abuf,
+				characterBuffer: cbuf,
+				gate,
+				openTag: node.tagName,
+				openNodeType: ntype,
+				openTagType: ttype,
+				rawTextMode: rmode,
+				rawTextBuffer: rmbuf
+			})
+
+		if (rmode) {
+			if (char === LT_SIGN) {
+				rmbuf = LT_SIGN
+			} else if (char === F_SLASH) {
+				if (rmbuf === LT_SIGN) {
+					rmbuf = `${LT_SIGN}${F_SLASH}`
+				} else {
+					rmbuf = ""
+				}
+			} else if (char === GT_SIGN) {
+				if (rmbuf.length - 2 === node.tagName.length) {
+					const tnode = new Node({
+						type: TEXT,
+						value: cbuf.substring(0, cbuf.length - (node.tagName.length + 2))
+					})
+
+					node.appendChild(tnode)
+					node = node.parent
+					rmode = false
+					rmbuf = ""
+					cbuf = ""
+					continue
+				} else {
+					rmbuf = ""
+				}
+			} else if (rmbuf.length >= 2) {
+				if (node.tagName[rmbuf.length - 2] === char) {
+					rmbuf = `${rmbuf}${char}`
+				} else {
+					rmbuf = ""
+				}
+			}
+
+			cbuf = `${cbuf}${char}`
+			continue
+		}
 
 		if (char === LT_SIGN) {
 			if (ttype === SC_TAG) throw new UnexpectedTokenError(char, i + 1)
@@ -137,7 +202,7 @@ function parse(data, options = {}) {
 			if (ntype === ELEMENT) {
 				if (gate !== SQ_A_VAL && gate !== DQ_A_VAL) {
 					if (gate === TAG_NAME) {
-						nbuf.tagName = cbuf
+						nbuf.tagName = options.htmlMode ? cbuf.toLowerCase() : cbuf
 					} else if (gate === ATT_NAME) {
 						if (!nbuf.attributes) nbuf.attributes = {}
 						if (options.onAttribute) {
@@ -177,10 +242,25 @@ function parse(data, options = {}) {
 						abuf = ""
 					}
 
-					if (ttype === CL_TAG) {
-						if (node === root) throw new Error("Unmatched closing tag")
+					// If a tag is in rawTextElements, it should overwrite a dupe in voidElements,
+					// because how the fuck can a void element have raw text in it?
+					if (options.voidElements[nbuf.tagName] && !options.rawTextElements[nbuf.tagName]) ttype = SC_TAG
+
+					if (options.rawTextElements[nbuf.tagName]) {
+						rmode = true
+
+						const nnode = new Node({
+							type: ELEMENT,
+							tagName: nbuf.tagName,
+							attributes: nbuf.attributes
+						})
+
+						node.appendChild(nnode)
+						node = nnode
+					} else if (ttype === CL_TAG) {
+						if (node === root) throw new UnmatchedClosingTag(i + 1)
 						if (node.tagName !== nbuf.tagName && node.parent.tagName !== nbuf.tagName)
-							throw new Error("Unmatched closing tag")
+							throw new UnmatchedClosingTag(i + 1)
 
 						node = node.parent
 					} else {
@@ -219,7 +299,7 @@ function parse(data, options = {}) {
 				if (gate !== SQ_A_VAL && gate !== DQ_A_VAL) {
 					if (cbuf) {
 						if (gate === TAG_NAME) {
-							nbuf.tagName = cbuf
+							nbuf.tagName = options.htmlMode ? cbuf.toLowerCase() : cbuf
 							cbuf = ""
 							gate = undefined
 							continue

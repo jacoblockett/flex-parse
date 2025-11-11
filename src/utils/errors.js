@@ -10,3 +10,16 @@ export class UnexpectedTokenError extends Error {
 		Error.captureStackTrace(this, UnexpectedTokenError)
 	}
 }
+
+export class UnmatchedClosingTag extends Error {
+	constructor(charNumber, message) {
+		super(
+			`A tag that was never opened is attempting to close at character ${charNumber}${
+				typeof message === "string" && message.length ? ` - ${message}` : ""
+			}`
+		)
+		this.name = "UnmatchedClosingTag"
+
+		Error.captureStackTrace(this, UnmatchedClosingTag)
+	}
+}
