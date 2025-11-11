@@ -13,13 +13,25 @@ class UnexpectedTokenError extends Error {
 	}
 }
 
+class UnmatchedClosingTag extends Error {
+	constructor(charNumber, message) {
+		super(
+			`A tag that was never opened is attempting to close at character ${charNumber}${
+				typeof message === "string" && message.length ? ` - ${message}` : ""
+			}`
+		);
+		this.name = "UnmatchedClosingTag";
+
+		Error.captureStackTrace(this, UnmatchedClosingTag);
+	}
+}
+
 // DESIGN NOTE: This library makes no attempt at validating the data it receives beyond ensuring it abides
 // by this api's ability to interpret the data. For instance, "<" is perfectly acceptable within a text node,
 // whereas in reality that's obviously disallowed. Validation is out of scope for this library and should be
 // handled in the calling library.
 
-
-// TODO: Replace "PKG" with the actual package name whenever you think of one.
+// import isWhitespace from "./utils/isWhitespace"
 
 const getChildren = Symbol("getChildren");
 const setNext = Symbol("setNext");
@@ -37,7 +49,7 @@ class Node {
 	#next
 	#parent
 	#previous
-	#selfClosing
+	#isSelfClosing
 	#tagName
 	#type
 	#value
@@ -51,7 +63,7 @@ class Node {
 	 * @param {{[name: string]: string|number|boolean}} [init.attributes] (Optional) Attributes to use with `"element"` nodes. Attribute keys are case-sensitive. `"comment"` and `"text"` nodes will ignore this option
 	 * @param {Node[]} [init.children] (Optional) Children to immediately populate the node with. `"comment"` and `"text"` nodes will ignore this option
 	 * @param {string} [init.value] (Optional) The text to use for `"comment"` and `"text"` nodes. This is not the same as the `value` attribute. To set that, use the `init.attributes` option. `"element"` nodes will ignore this option
-	 * @param {boolean} [init.selfClosing] (Optional) Whether the node is a self-closing tag or not. `"comment"` and `"text"` nodes will ignore this option
+	 * @param {boolean} [init.isSelfClosing] (Optional) Whether the node is a self-closing tag or not. `"comment"` and `"text"` nodes will ignore this option
 	 */
 	constructor(init = {}) {
 		if (Object.prototype.toString.call(init) !== "[object Object]")
@@ -79,12 +91,12 @@ class Node {
 			this.#attributes = init.attributes;
 			this.#children = [];
 
-			if (typeof init.selfClosing !== "boolean") init.selfClosing = false;
+			if (typeof init.isSelfClosing !== "boolean") init.isSelfClosing = false;
 
-			this.#selfClosing = init.selfClosing;
+			this.#isSelfClosing = init.isSelfClosing;
 
 			if (Array.isArray(init.children) && init.children.length) {
-				if (init.selfClosing) throw new Error("Self-closing nodes cannot have children")
+				if (init.isSelfClosing) throw new Error("Self-closing nodes cannot have children")
 
 				this.appendChild(init.children);
 			}
@@ -218,7 +230,7 @@ class Node {
 	 * @returns {{[name: string]: string|number|boolean}|undefined}
 	 */
 	get attributes() {
-		return this.#attributes ? Object.freeze({ ...this.#attributes }) : undefined
+		return this.#attributes ? { ...this.#attributes } : undefined
 	}
 
 	/**
@@ -227,7 +239,7 @@ class Node {
 	 * @returns {Node[]|undefined}
 	 */
 	get children() {
-		return this.#children ? Object.freeze([...this.#children]) : undefined
+		return this.#children ? [...this.#children] : undefined
 	}
 
 	/**
@@ -241,7 +253,7 @@ class Node {
 	}
 
 	/**
-	 * Checks if the node is the child of another node.
+	 * Checks if the node is a child of another node.
 	 *
 	 * @returns {boolean}
 	 */
@@ -250,21 +262,81 @@ class Node {
 	}
 
 	/**
-	 * Checks if the node has been disconnected by its family nodes.
+	 * Checks if the node is the first child of another node.
 	 *
 	 * @returns {boolean}
 	 */
-	get isOrphan() {
-		//todo
+	get isFirstChild() {
+		return this.#parent?.firstChild === this
 	}
 
 	/**
-	 * Checks if the node is a parent to another node.
+	 * Checks if the node is a grandchild to another node.
+	 *
+	 * @returns {boolean}
+	 */
+	get isGrandchild() {
+		return !!this.#parent?.parent
+	}
+
+	/**
+	 * Checks if the node is a grandparent to another node.
+	 *
+	 * @returns {boolean}
+	 */
+	get isGrandparent() {
+		if (!this.#children?.length) return false
+
+		for (const child of this.#children) {
+			if (child.children?.length) return true
+		}
+
+		return false
+	}
+
+	/**
+	 * Checks if the node is the last child of another node.
+	 *
+	 * @returns {boolean}
+	 */
+	get isLastChild() {
+		return this.#parent?.lastChild === this
+	}
+
+	/**
+	 * Checks if the node is the only child of its parent.
+	 *
+	 * @returns {boolean}
+	 */
+	get isOnlyChild() {
+		return this.#parent?.children?.length === 1
+	}
+
+	/**
+	 * Checks if the node is a parent of another node.
 	 *
 	 * @returns {boolean}
 	 */
 	get isParent() {
 		return !!this.#children?.length
+	}
+
+	/**
+	 * Checks if the node is self-closing.
+	 *
+	 * @returns {boolean}
+	 */
+	get isSelfClosing() {
+		return !!this.#isSelfClosing
+	}
+
+	/**
+	 * Checks if the node is a sibling to another node.
+	 *
+	 * @returns {boolean}
+	 */
+	get isSibling() {
+		return this.#parent?.children?.length > 1
 	}
 
 	/**
@@ -316,15 +388,6 @@ class Node {
 			if (!qNode.parent) return qNode
 			qNode = qNode.parent;
 		}
-	}
-
-	/**
-	 * Whether or not the node is self-closing. `"comment"` and `"text"` nodes do not have a selfClosing member.
-	 *
-	 * @returns {boolean|undefined}
-	 */
-	get selfClosing() {
-		return this.#selfClosing
 	}
 
 	/**
@@ -607,6 +670,33 @@ class Node {
 	}
 
 	/**
+	 * Checks if the attribute exists on the node.
+	 *
+	 * @param {string} attributeName
+	 * @returns {boolean}
+	 */
+	hasAttribute(attributeName) {
+		return Object.hasOwn(this.#attributes, attributeName)
+	}
+
+	/**
+	 * Gets the nth child from the node. Children are indexed by 1, not by 0.
+	 * Negative numbers will work from the last child to the first.
+	 *
+	 * @param {number} n The nth child to get
+	 * @returns {Node|undefined} The child, or undefined if it doesn't exist
+	 */
+	nthChild(n) {
+		if (!!this.#children) return undefined
+
+		const idx = n > 0 ? n - 1 : this.#children.length + n;
+
+		if (idx < 0 || idx >= this.#children.length) return undefined
+
+		return this.#children[idx]
+	}
+
+	/**
 	 * Removes the given child or children from the node. You can pass multiple nodes as arguments or an array of
 	 * nodes. Nodes of type "comment" and "text", and nodes with no children, will do nothing.
 	 *
@@ -695,6 +785,23 @@ class Node {
 	}
 
 	/**
+	 * Converts the current node and all of its children into JavaScript objects.
+	 *
+	 * @returns {object}
+	 */
+	toObject() {
+		const object = {};
+
+		if (this.type) object.type = this.type;
+		if (this.tagName) object.tagName = this.tagName;
+		if (this.value !== undefined) object.value = this.value;
+		if (Object.keys(this.attributes || {}).length) object.attributes = this.attributes;
+		if (this.children?.length) object.children = this.children.map(child => child.toObject());
+
+		return object
+	}
+
+	/**
 	 * Renders the current node and all of its children into a string.
 	 *
 	 * @param {object} [options]
@@ -729,11 +836,11 @@ class Node {
 
 				// handle opening tag
 				const a = `${Object.entries(node.attributes).reduce((p, [k, v]) => `${p} ${k}="${v}"`, "")}`;
-				str += `${indent}<${node.tagName}${a}${node.selfClosing ? " /" : ""}>${
-					node.children.length || node.selfClosing ? newline : ""
+				str += `${indent}<${node.tagName}${a}${node.isSelfClosing ? " /" : ""}>${
+					node.children.length || node.isSelfClosing ? newline : ""
 				}`;
 
-				if (node.selfClosing) continue
+				if (node.isSelfClosing) continue
 
 				// handle nested children
 				if (node.children.length && !requeued) {
@@ -765,6 +872,20 @@ class Node {
 		for (const char of queryString) {
 		}
 	}
+}
+
+function hashArray(arr, toLowerCase) {
+	const hash = {};
+
+	for (const item of arr) {
+		if (toLowerCase) {
+			hash[`${item}`.toLowerCase()] = true;
+		} else {
+			hash[`${item}`] = true;
+		}
+	}
+
+	return hash
 }
 
 // Whitespace characters
@@ -919,12 +1040,16 @@ function truncateWhitespace(string, includeSymbols = false) {
  *
  * @param {string|Buffer} data The HTML/XML data to parse
  * @param {object} [options]
+ * @param {boolean} [options.htmlMode] Treats the document as HTML and will apply specific parsing rules as such
  * @param {boolean} [options.ignoreEmptyText] Removes any empty (whitespace only) text nodes from the results
- * @param {(data: string) => string} [options.onText] An event fired when a text node is about to be pushed to the results whose return string will replace the original text node's value
+ * @param {(snapshot: {currentChar: string, currentNodeName: string, attributesBuffer: string, characterBuffer: string, gate: string, openNodeType: string, openTagType: string, nodeBuffer: Node}) => void} [options.onSnapshot] An event fired for every character iterated, producing a snapshot of the current parse buffer; useful for debugging
+ * @param {(text: string) => string} [options.onText] An event fired when a text node is about to be pushed to the results whose return string will replace the original text node's value
+ * @param {string[]} [options.rawTextElements] Case-sensitive list of element names that should have their content be treated as raw text (overwritten by `options.htmlMode`)
  * @param {boolean} [options.trimAttributes] Trims whitespace on either side of attribute values
  * @param {boolean} [options.trimText] Trims whitespace on either side of text nodes
  * @param {boolean} [options.truncateAttributes] Collapses all multiple-sequenced whitespaces into a single whitespace on attribute values
  * @param {boolean} [options.truncateText] Collapses all multiple-sequenced whitespaces into a single whitespace on text nodes
+ * @param {string[]} [options.voidElements] Case-sensitive list of element names that should be treated as void - i.e. elements that do not accept children (overwritten by `options.htmlMode`)
  *
  * @returns {Node}
  */
@@ -937,19 +1062,53 @@ function parse(data, options = {}) {
 
 	// Set default options
 	if (Object.prototype.toString.call(options) !== "[object Object]") options = {};
+	if (typeof options.htmlMode !== "boolean") options.htmlMode = false;
 	if (typeof options.ignoreEmptyText !== "boolean") options.ignoreEmptyText = false;
+	if (typeof options.onSnapshot !== "function") options.onSnapshot = undefined;
 	if (typeof options.onText !== "function") options.onText = undefined;
+	if (!Array.isArray(options.rawTextElements)) options.rawTextElements = [];
+	options.rawTextElements = hashArray(options.rawTextElements, options.htmlMode);
 	if (typeof options.trimAttributes !== "boolean") options.trimAttributes = false;
 	if (typeof options.trimText !== "boolean") options.trimText = false;
 	if (typeof options.truncateAttributes !== "boolean") options.truncateAttributes = false;
 	if (typeof options.truncateText !== "boolean") options.truncateText = false;
+	if (!Array.isArray(options.voidElements)) options.voidElements = [];
+	options.voidElements = hashArray(options.voidElements, options.htmlMode);
+	if (options.htmlMode) {
+		options.rawTextElements = {
+			...options.rawTextElements,
+			script: true,
+			style: true,
+			title: true,
+			textarea: true
+		};
+		options.voidElements = {
+			...options.voidElements,
+			area: true,
+			base: true,
+			br: true,
+			col: true,
+			command: true,
+			embed: true,
+			hr: true,
+			img: true,
+			input: true,
+			keygen: true,
+			link: true,
+			meta: true,
+			param: true,
+			source: true,
+			track: true,
+			wbr: true
+		};
+	}
 
 	// Character Constants
 	const LT_SIGN = "<";
 	const GT_SIGN = ">";
 	const EQ_SIGN = "=";
-	const S_QUOTE = "'";
-	const D_QUOTE = '"';
+	const S_QUOTE = `'`;
+	const D_QUOTE = `"`;
 	const F_SLASH = "/";
 	const BANG = "!";
 	const DASH = "-";
@@ -972,18 +1131,68 @@ function parse(data, options = {}) {
 
 	// Loop Dependents
 	const root = new Node({ type: ELEMENT, tagName: "ROOT" });
-	let node = root;
+	let node = root; // default root node to get things started
 	let nbuf = {}; // node buffer
 	let abuf = ""; // attribute name buffer
 	let cbuf = ""; // character buffer
 	let gate; // filter gates dictating where the cbuf is meant to be flushed
 	let ntype; // node type that is currently open
 	let ttype; // tag type for the currently open tag declaration
+	let rmode = false; // raw text mode
+	let rmbuf = ""; // raw text mode sequence end buffer
 
 	for (let i = 0; i < data.length; i++) {
 		const char = data[i];
 
-		// report(char)
+		if (options.onSnapshot)
+			options.onSnapshot({
+				currentChar: char,
+				attributesBuffer: abuf,
+				characterBuffer: cbuf,
+				gate,
+				openTag: node.tagName,
+				openNodeType: ntype,
+				openTagType: ttype,
+				rawTextMode: rmode,
+				rawTextBuffer: rmbuf
+			});
+
+		if (rmode) {
+			if (char === LT_SIGN) {
+				rmbuf = LT_SIGN;
+			} else if (char === F_SLASH) {
+				if (rmbuf === LT_SIGN) {
+					rmbuf = `${LT_SIGN}${F_SLASH}`;
+				} else {
+					rmbuf = "";
+				}
+			} else if (char === GT_SIGN) {
+				if (rmbuf.length - 2 === node.tagName.length) {
+					const tnode = new Node({
+						type: TEXT,
+						value: cbuf.substring(0, cbuf.length - (node.tagName.length + 2))
+					});
+
+					node.appendChild(tnode);
+					node = node.parent;
+					rmode = false;
+					rmbuf = "";
+					cbuf = "";
+					continue
+				} else {
+					rmbuf = "";
+				}
+			} else if (rmbuf.length >= 2) {
+				if (node.tagName[rmbuf.length - 2] === char) {
+					rmbuf = `${rmbuf}${char}`;
+				} else {
+					rmbuf = "";
+				}
+			}
+
+			cbuf = `${cbuf}${char}`;
+			continue
+		}
 
 		if (char === LT_SIGN) {
 			if (ttype === SC_TAG) throw new UnexpectedTokenError(char, i + 1)
@@ -1017,7 +1226,7 @@ function parse(data, options = {}) {
 			if (ntype === ELEMENT) {
 				if (gate !== SQ_A_VAL && gate !== DQ_A_VAL) {
 					if (gate === TAG_NAME) {
-						nbuf.tagName = cbuf;
+						nbuf.tagName = options.htmlMode ? cbuf.toLowerCase() : cbuf;
 					} else if (gate === ATT_NAME) {
 						if (!nbuf.attributes) nbuf.attributes = {};
 						if (options.onAttribute) {
@@ -1057,10 +1266,25 @@ function parse(data, options = {}) {
 						abuf = "";
 					}
 
-					if (ttype === CL_TAG) {
-						if (node === root) throw new Error("Unmatched closing tag")
+					// If a tag is in rawTextElements, it should overwrite a dupe in voidElements,
+					// because how the fuck can a void element have raw text in it?
+					if (options.voidElements[nbuf.tagName] && !options.rawTextElements[nbuf.tagName]) ttype = SC_TAG;
+
+					if (options.rawTextElements[nbuf.tagName]) {
+						rmode = true;
+
+						const nnode = new Node({
+							type: ELEMENT,
+							tagName: nbuf.tagName,
+							attributes: nbuf.attributes
+						});
+
+						node.appendChild(nnode);
+						node = nnode;
+					} else if (ttype === CL_TAG) {
+						if (node === root) throw new UnmatchedClosingTag(i + 1)
 						if (node.tagName !== nbuf.tagName && node.parent.tagName !== nbuf.tagName)
-							throw new Error("Unmatched closing tag")
+							throw new UnmatchedClosingTag(i + 1)
 
 						node = node.parent;
 					} else {
@@ -1099,7 +1323,7 @@ function parse(data, options = {}) {
 				if (gate !== SQ_A_VAL && gate !== DQ_A_VAL) {
 					if (cbuf) {
 						if (gate === TAG_NAME) {
-							nbuf.tagName = cbuf;
+							nbuf.tagName = options.htmlMode ? cbuf.toLowerCase() : cbuf;
 							cbuf = "";
 							gate = undefined;
 							continue
