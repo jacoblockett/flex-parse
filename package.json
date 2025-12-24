@@ -2,11 +2,11 @@
 	"name": "flex-parse",
 	"version": "0.4.0",
 	"description": "A flexible document/ml parser, allowing non-standard practices and preferring a greedy 'preserve all' approach",
-	"main": "dist/index.js",
-	"module": "src/index.js",
+	"main": "dist/index.cjs",
+	"module": "dist/index.mjs",
 	"exports": {
 		"require": "./dist/index.cjs",
-		"import": "./src/index.js"
+		"import": "./dist/dist/index.mjs"
 	},
 	"type": "module",
 	"repository": {
