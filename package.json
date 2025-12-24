@@ -31,6 +31,11 @@
 	],
 	"author": "Jacob Lockett",
 	"license": "MIT",
+	"files": [
+		"dist/",
+		"LICENSE",
+		"README.md"
+	],
 	"devDependencies": {
 		"@rollup/plugin-commonjs": "^29.0.0",
 		"@rollup/plugin-node-resolve": "^16.0.3",
