@@ -1,5 +1,5 @@
 import { UnexpectedTokenError, UnmatchedClosingTag } from "./utils/errors.js"
-import { Node } from "virty"
+import { Node, CDATA, COMMENT, ELEMENT, TEXT } from "virty"
 import hashArray from "./utils/hashArray.js"
 import isWhitespace from "./utils/isWhitespace.js"
 import truncateWhitespace from "./utils/truncateWhitespace.js"
@@ -81,6 +81,8 @@ function parse(data, options = {}) {
 	const F_SLASH = "/"
 	const BANG = "!"
 	const DASH = "-"
+	const O_BRACK = "["
+	const C_BRACK = "]"
 
 	// Gates
 	const TAG_NAME = "tag name"
@@ -88,11 +90,6 @@ function parse(data, options = {}) {
 	const SQ_A_VAL = "single-quote attribute value"
 	const DQ_A_VAL = "double-quote attribute value"
 	const NQ_A_VAL = "no-quote attribute value"
-
-	// Node Types
-	const COMMENT = "comment"
-	const ELEMENT = "element"
-	const TEXT = "text"
 
 	// Tag Types
 	const CL_TAG = "closing tag"
