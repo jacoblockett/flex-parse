@@ -84,6 +84,10 @@ function parse(data, options = {}) {
 	const O_BRACK = "["
 	const C_BRACK = "]"
 
+	// Character Sequence Constants
+	const O_COMMENT = "<!--"
+	const O_CDATA = "<![CDATA["
+
 	// Gates
 	const TAG_NAME = "tag name"
 	const ATT_NAME = "attribute name"
@@ -124,35 +128,64 @@ function parse(data, options = {}) {
 			})
 
 		if (rmode) {
-			if (char === LT_SIGN) {
-				rmbuf = LT_SIGN
-			} else if (char === F_SLASH) {
-				if (rmbuf === LT_SIGN) {
-					rmbuf = `${LT_SIGN}${F_SLASH}`
-				} else {
-					rmbuf = ""
-				}
-			} else if (char === GT_SIGN) {
-				if (rmbuf.length - 2 === node.tagName.length) {
-					const tnode = new Node({
-						type: TEXT,
-						value: cbuf.substring(0, cbuf.length - (node.tagName.length + 2))
-					})
+			if (ntype === CDATA) {
+				if (char === C_BRACK) {
+					if (rmbuf === C_BRACK) {
+						rmbuf = `${C_BRACK}${C_BRACK}`
+					} else {
+						rmbuf = C_BRACK
+					}
+				} else if (char === GT_SIGN) {
+					if (rmbuf === `${C_BRACK}${C_BRACK}`) {
+						const cnode = new Node({
+							type: CDATA,
+							value: cbuf.substring(0, cbuf.length - 2)
+						})
 
-					node.appendChild(tnode)
-					node = node.parent
-					rmode = false
-					rmbuf = ""
-					cbuf = ""
-					continue
+						node.appendChild(cnode)
+						rmode = false
+						rmbuf = ""
+						cbuf = ""
+						ntype = undefined
+						continue
+					} else {
+						rmbuf = ""
+					}
 				} else {
 					rmbuf = ""
 				}
-			} else if (rmbuf.length >= 2) {
-				if (node.tagName[rmbuf.length - 2] === char) {
-					rmbuf = `${rmbuf}${char}`
-				} else {
-					rmbuf = ""
+			} else {
+				if (char === LT_SIGN) {
+					rmbuf = LT_SIGN
+				} else if (char === F_SLASH) {
+					if (rmbuf === LT_SIGN) {
+						rmbuf = `${LT_SIGN}${F_SLASH}`
+					} else {
+						rmbuf = ""
+					}
+				} else if (char === GT_SIGN) {
+					if (rmbuf.length - 2 === node.tagName.length) {
+						const tnode = new Node({
+							type: TEXT,
+							value: cbuf.substring(0, cbuf.length - (node.tagName.length + 2))
+						})
+
+						node.appendChild(tnode)
+						node = node.parent
+						rmode = false
+						rmbuf = ""
+						cbuf = ""
+						ntype = undefined
+						continue
+					} else {
+						rmbuf = ""
+					}
+				} else if (rmbuf.length >= 2) {
+					if (node.tagName[rmbuf.length - 2] === char) {
+						rmbuf = `${rmbuf}${char}`
+					} else {
+						rmbuf = ""
+					}
 				}
 			}
 
@@ -365,10 +398,16 @@ function parse(data, options = {}) {
 			continue
 		} else if (ntype === ELEMENT) {
 			if (gate === TAG_NAME) {
-				if (cbuf[0] === BANG && cbuf[1] === DASH && char === DASH) {
-					cbuf = "<!--"
+				if (`<${cbuf}${char}` === O_COMMENT) {
+					cbuf = O_COMMENT
 					gate = undefined
 					ntype = COMMENT
+					continue
+				} else if (`<${cbuf}${char}`.toUpperCase() === O_CDATA) {
+					cbuf = ""
+					gate = undefined
+					ntype = CDATA
+					rmode = true
 					continue
 				}
 			} else if (!gate) {

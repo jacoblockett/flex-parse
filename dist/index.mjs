@@ -36,6 +36,7 @@ const setNext = Symbol("setNext");
 const setParent = Symbol("setParent");
 const setPrevious = Symbol("setPrevious");
 
+const CDATA = "cdata";
 const COMMENT = "comment";
 const ELEMENT = "element";
 const TEXT = "text";
@@ -56,12 +57,12 @@ class Node {
 	 * Creates a new Node - a representation of HTML/XML similar to that of a DOM node.
 	 *
 	 * @param {object} init (Required)
-	 * @param {"comment"|"element"|"text"} init.type (Required) Case-*in*sensitive type of the node
-	 * @param {string} [init.tagName] (Optional) Case-sensitive tag name, e.g. `"img"` for `<img />`. `"comment"` and `"text"` nodes will ignore this option
-	 * @param {{[name: string]: string|number|boolean}} [init.attributes] (Optional) Attributes to use with `"element"` nodes. Attribute keys are case-sensitive. `"comment"` and `"text"` nodes will ignore this option
-	 * @param {Node[]} [init.children] (Optional) Children to immediately populate the node with. `"comment"` and `"text"` nodes will ignore this option
-	 * @param {string} [init.value] (Optional) The text to use for `"comment"` and `"text"` nodes. This is not the same as the `value` attribute. To set that, use the `init.attributes` option. `"element"` nodes will ignore this option
-	 * @param {boolean} [init.isSelfClosing] (Optional) Whether the node is a self-closing tag or not. `"comment"` and `"text"` nodes will ignore this option
+	 * @param {"cdata"|"comment"|"element"|"text"} init.type (Required) Case-*in*sensitive type of the node
+	 * @param {string} [init.tagName] (Optional) Case-sensitive tag name, e.g. `"img"` for `<img />`. `"cdata"`, `"comment"`, and `"text"` nodes will ignore this option
+	 * @param {{[name: string]: string|number|boolean}} [init.attributes] (Optional) Attributes to use with `"element"` nodes. Attribute keys are case-sensitive. `"cdata"`, `"comment"`, and `"text"` nodes will ignore this option
+	 * @param {Node[]} [init.children] (Optional) Children to immediately populate the node with. `"cdata"`, `"comment"`, and `"text"` nodes will ignore this option
+	 * @param {string} [init.value] (Optional) The text to use for `"cdata"`, `"comment"`, and `"text"` nodes. This is not the same as the `value` attribute. To set that, use the `init.attributes` option. `"element"` nodes will ignore this option
+	 * @param {boolean} [init.isSelfClosing] (Optional) Whether the node is a self-closing tag or not. `"cdata"`, `"comment"`, and `"text"` nodes will ignore this option
 	 */
 	constructor(init = {}) {
 		if (Object.prototype.toString.call(init) !== "[object Object]")
@@ -70,59 +71,77 @@ class Node {
 
 		init.type = init.type.toLowerCase();
 
-		if (init.type !== COMMENT && init.type !== ELEMENT && init.type !== TEXT)
-			throw new TypeError(`Expected 'init.type' to be one of "comment", "element", or "text"`)
+		if (init.type !== CDATA && init.type !== COMMENT && init.type !== ELEMENT && init.type !== TEXT)
+			throw new TypeError(`Expected 'init.type' to be one of "cdata", "comment", "element", or "text"`)
 
 		this.#type = init.type;
 
-		if (init.type === ELEMENT) {
-			if (typeof init.tagName !== "string") init.tagName = "";
+		switch (init.type) {
+			case COMMENT:
+				if (typeof init.value !== "string") init.value = "";
+				else init.value = init.value.trim();
 
-			this.#tagName = init.tagName;
+				const iv = init.value;
+				const ivl = iv.length;
 
-			if (Object.prototype.toString.call(init.attributes) !== "[object Object]") init.attributes = {};
+				if (
+					ivl &&
+					(iv[0] !== "<" ||
+						iv[1] !== "!" ||
+						iv[2] !== "-" ||
+						iv[3] !== "-" ||
+						iv[ivl - 3] !== "-" ||
+						iv[ivl - 2] !== "-" ||
+						iv[ivl - 1] !== ">")
+				)
+					init.value = `<!--${init.value}-->`;
 
-			for (const [key, val] of Object.entries(init.attributes))
-				if (typeof val !== "string" && typeof val !== "number" && typeof val !== "boolean")
-					throw new TypeError(`Expected init.attributes.${key} to be string|number|boolean`)
+				this.#value = init.value;
 
-			this.#attributes = init.attributes;
-			this.#children = [];
+				break
+			case ELEMENT:
+				if (typeof init.tagName !== "string") init.tagName = "";
 
-			if (typeof init.isSelfClosing !== "boolean") init.isSelfClosing = false;
+				this.#tagName = init.tagName;
 
-			this.#isSelfClosing = init.isSelfClosing;
+				if (Object.prototype.toString.call(init.attributes) !== "[object Object]") init.attributes = {};
 
-			if (Array.isArray(init.children) && init.children.length) {
-				if (init.isSelfClosing) throw new Error("Self-closing nodes cannot have children")
+				for (const [key, val] of Object.entries(init.attributes))
+					if (typeof val !== "string" && typeof val !== "number" && typeof val !== "boolean")
+						throw new TypeError(`Expected init.attributes.${key} to be string|number|boolean`)
 
-				this.appendChild(init.children);
-			}
-		} else if (init.type === COMMENT) {
-			if (typeof init.value !== "string") init.value = "";
-			else init.value = init.value.trim();
+				this.#attributes = init.attributes;
+				this.#children = [];
 
-			const iv = init.value;
-			const ivl = iv.length;
+				if (typeof init.isSelfClosing !== "boolean") init.isSelfClosing = false;
 
-			if (
-				ivl &&
-				(iv[0] !== "<" ||
-					iv[1] !== "!" ||
-					iv[2] !== "-" ||
-					iv[3] !== "-" ||
-					iv[ivl - 3] !== "-" ||
-					iv[ivl - 2] !== "-" ||
-					iv[ivl - 1] !== ">")
-			)
-				init.value = `<!--${init.value}-->`;
+				this.#isSelfClosing = init.isSelfClosing;
 
-			this.#value = init.value;
-		} else if (init.type === TEXT) {
-			if (typeof init.value !== "string") init.value = "";
+				if (Array.isArray(init.children) && init.children.length) {
+					if (init.isSelfClosing) throw new Error("Self-closing nodes cannot have children")
 
-			this.#value = init.value;
+					this.appendChild(init.children);
+				}
+
+				break
+			case CDATA:
+			case TEXT:
+				if (typeof init.value !== "string") init.value = "";
+
+				this.#value = init.value;
+
+				break
 		}
+	}
+
+	/**
+	 * Checks if the given value is a CDATA node.
+	 *
+	 * @param {unknown} value
+	 * @returns {boolean}
+	 */
+	static isCDATA(value) {
+		return value instanceof Node && value.type === CDATA
 	}
 
 	/**
@@ -1108,8 +1127,12 @@ function parse(data, options = {}) {
 	const S_QUOTE = `'`;
 	const D_QUOTE = `"`;
 	const F_SLASH = "/";
-	const BANG = "!";
 	const DASH = "-";
+	const C_BRACK = "]";
+
+	// Character Sequence Constants
+	const O_COMMENT = "<!--";
+	const O_CDATA = "<![CDATA[";
 
 	// Gates
 	const TAG_NAME = "tag name";
@@ -1117,11 +1140,6 @@ function parse(data, options = {}) {
 	const SQ_A_VAL = "single-quote attribute value";
 	const DQ_A_VAL = "double-quote attribute value";
 	const NQ_A_VAL = "no-quote attribute value";
-
-	// Node Types
-	const COMMENT = "comment";
-	const ELEMENT = "element";
-	const TEXT = "text";
 
 	// Tag Types
 	const CL_TAG = "closing tag";
@@ -1156,35 +1174,64 @@ function parse(data, options = {}) {
 			});
 
 		if (rmode) {
-			if (char === LT_SIGN) {
-				rmbuf = LT_SIGN;
-			} else if (char === F_SLASH) {
-				if (rmbuf === LT_SIGN) {
-					rmbuf = `${LT_SIGN}${F_SLASH}`;
-				} else {
-					rmbuf = "";
-				}
-			} else if (char === GT_SIGN) {
-				if (rmbuf.length - 2 === node.tagName.length) {
-					const tnode = new Node({
-						type: TEXT,
-						value: cbuf.substring(0, cbuf.length - (node.tagName.length + 2))
-					});
+			if (ntype === CDATA) {
+				if (char === C_BRACK) {
+					if (rmbuf === C_BRACK) {
+						rmbuf = `${C_BRACK}${C_BRACK}`;
+					} else {
+						rmbuf = C_BRACK;
+					}
+				} else if (char === GT_SIGN) {
+					if (rmbuf === `${C_BRACK}${C_BRACK}`) {
+						const cnode = new Node({
+							type: CDATA,
+							value: cbuf.substring(0, cbuf.length - 2)
+						});
 
-					node.appendChild(tnode);
-					node = node.parent;
-					rmode = false;
-					rmbuf = "";
-					cbuf = "";
-					continue
+						node.appendChild(cnode);
+						rmode = false;
+						rmbuf = "";
+						cbuf = "";
+						ntype = undefined;
+						continue
+					} else {
+						rmbuf = "";
+					}
 				} else {
 					rmbuf = "";
 				}
-			} else if (rmbuf.length >= 2) {
-				if (node.tagName[rmbuf.length - 2] === char) {
-					rmbuf = `${rmbuf}${char}`;
-				} else {
-					rmbuf = "";
+			} else {
+				if (char === LT_SIGN) {
+					rmbuf = LT_SIGN;
+				} else if (char === F_SLASH) {
+					if (rmbuf === LT_SIGN) {
+						rmbuf = `${LT_SIGN}${F_SLASH}`;
+					} else {
+						rmbuf = "";
+					}
+				} else if (char === GT_SIGN) {
+					if (rmbuf.length - 2 === node.tagName.length) {
+						const tnode = new Node({
+							type: TEXT,
+							value: cbuf.substring(0, cbuf.length - (node.tagName.length + 2))
+						});
+
+						node.appendChild(tnode);
+						node = node.parent;
+						rmode = false;
+						rmbuf = "";
+						cbuf = "";
+						ntype = undefined;
+						continue
+					} else {
+						rmbuf = "";
+					}
+				} else if (rmbuf.length >= 2) {
+					if (node.tagName[rmbuf.length - 2] === char) {
+						rmbuf = `${rmbuf}${char}`;
+					} else {
+						rmbuf = "";
+					}
 				}
 			}
 
@@ -1397,10 +1444,16 @@ function parse(data, options = {}) {
 			continue
 		} else if (ntype === ELEMENT) {
 			if (gate === TAG_NAME) {
-				if (cbuf[0] === BANG && cbuf[1] === DASH && char === DASH) {
-					cbuf = "<!--";
+				if (`<${cbuf}${char}` === O_COMMENT) {
+					cbuf = O_COMMENT;
 					gate = undefined;
 					ntype = COMMENT;
+					continue
+				} else if (`<${cbuf}${char}`.toUpperCase() === O_CDATA) {
+					cbuf = "";
+					gate = undefined;
+					ntype = CDATA;
+					rmode = true;
 					continue
 				}
 			} else if (!gate) {
