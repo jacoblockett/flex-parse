@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       virty:
-        specifier: github:jacoblockett/virty
-        version: https://codeload.github.com/jacoblockett/virty/tar.gz/084a4b4c8b31d1748b3cf2840a208894e8101203
+        specifier: ^0.3.0
+        version: 0.3.0
     devDependencies:
       '@rollup/plugin-commonjs':
         specifier: ^29.0.0
@@ -355,9 +355,8 @@ packages:
     resolution: {integrity: sha512-QEg3HPMll0o3t2ourKwOeUAZ159Kn9mx5pnzHRQO8+Wixmh88YdZRiIwat0iNzNNXn0yoEtXJqFpyW7eM8BV7g==}
     engines: {node: '>=20.18.1'}
 
-  virty@https://codeload.github.com/jacoblockett/virty/tar.gz/084a4b4c8b31d1748b3cf2840a208894e8101203:
-    resolution: {tarball: https://codeload.github.com/jacoblockett/virty/tar.gz/084a4b4c8b31d1748b3cf2840a208894e8101203}
-    version: 0.2.0
+  virty@0.3.0:
+    resolution: {integrity: sha512-9ht4db6LDwq9nADFy/B4djPCkni5h0etPp6ZpCfJY8Q5HjQkRrsFfvbXOPUnearsOW7XSDRA+31IBZ1z8AJDMQ==}
 
   whatwg-encoding@3.1.1:
     resolution: {integrity: sha512-6qN4hJdMwfYBtE3YBTTHhoeuUrDBPZmbQaxWAqSALV/MeEnR5z1xd8UKud2RAkFoPkmB+hli1TZSnyi84xz1vQ==}
@@ -687,7 +686,7 @@ snapshots:
 
   undici@7.16.0: {}
 
-  virty@https://codeload.github.com/jacoblockett/virty/tar.gz/084a4b4c8b31d1748b3cf2840a208894e8101203:
+  virty@0.3.0:
     dependencies:
       string-width: 7.2.0
 

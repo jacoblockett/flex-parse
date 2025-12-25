@@ -45,6 +45,6 @@
 		"zod": "^3.25.76"
 	},
 	"dependencies": {
-		"virty": "github:jacoblockett/virty"
+		"virty": "^0.3.0"
 	}
 }
